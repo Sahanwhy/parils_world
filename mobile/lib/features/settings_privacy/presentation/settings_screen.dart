@@ -16,11 +16,9 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _messageController = TextEditingController();
   String _currentRole = '';
   String? _relationshipDate;
   bool _loaded = false;
-  bool _isSavingMessage = false;
 
   @override
   void initState() {
@@ -32,74 +30,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final storage = await LocalStorageService.getInstance();
     if (!mounted) return;
     setState(() {
-      _messageController.text = storage.getDeveloperMessage();
       _currentRole = storage.getRole().displayName;
       _relationshipDate = storage.getRelationshipStartDate();
       _loaded = true;
     });
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _saveDeveloperMessage() async {
-    setState(() => _isSavingMessage = true);
-    final storage = await LocalStorageService.getInstance();
-    await storage.setDeveloperMessage(_messageController.text.trim());
-    if (!mounted) return;
-    setState(() => _isSavingMessage = false);
-    ScaffoldMessenger.of(context).showSnackBar( // ignore: use_build_context_synchronously
-      const SnackBar(content: Text('Message saved ✓')),
-    );
-  }
-
-  Future<void> _resetDeveloperMessage() async {
-    final confirm = await _showConfirmDialog(
-      title: 'Reset message?',
-      content: 'This will restore the default placeholder message.',
-    );
-    if (!confirm || !mounted) return;
-    final storage = await LocalStorageService.getInstance();
-    await storage.setDeveloperMessage(AppConfig.defaultDeveloperMessage);
-    if (!mounted) return;
-    setState(() {
-      _messageController.text = AppConfig.defaultDeveloperMessage;
-    });
-    ScaffoldMessenger.of(context).showSnackBar( // ignore: use_build_context_synchronously
-      const SnackBar(content: Text('Message reset to default.')),
-    );
-  }
-
   Future<void> _switchRole() async {
     context.go(AppRoutes.welcome);
-  }
-
-  Future<bool> _showConfirmDialog({
-    required String title,
-    required String content,
-  }) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(content),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
   }
 
   @override
@@ -157,9 +95,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSectionHeader('Current Role'),
           _buildRoleCard(),
           const SizedBox(height: AppTheme.spacingL),
-          _buildSectionHeader('Developer Message'),
-          _buildMessageEditor(),
-          const SizedBox(height: AppTheme.spacingL),
           _buildSectionHeader('Relationship Date'),
           _buildRelationshipDateCard(),
           const SizedBox(height: AppTheme.spacingL),
@@ -213,52 +148,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: _switchRole,
             child: const Text('Switch'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageEditor() {
-    return AppCard(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Edit the message shown on the Developer Message screen.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          TextField(
-            controller: _messageController,
-            maxLines: 8,
-            decoration: const InputDecoration(
-              hintText: 'Write your heartfelt message here…',
-            ),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              height: 1.6,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _resetDeveloperMessage,
-                  child: const Text('Reset to default'),
-                ),
-              ),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: GradientButton(
-                  label: 'Save',
-                  onPressed: _saveDeveloperMessage,
-                  isLoading: _isSavingMessage,
-                ),
-              ),
-            ],
           ),
         ],
       ),

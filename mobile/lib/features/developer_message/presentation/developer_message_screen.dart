@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/routing/app_router.dart';
-import '../../../core/storage/local_storage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/shared_widgets.dart';
 
@@ -43,10 +42,9 @@ class _DeveloperMessageScreenState extends State<DeveloperMessageScreen>
   }
 
   Future<void> _loadMessage() async {
-    final storage = await LocalStorageService.getInstance();
     if (!mounted) return;
     setState(() {
-      _message = storage.getDeveloperMessage();
+      _message = AppConfig.defaultDeveloperMessage;
       _loaded = true;
     });
     _animController.forward();
