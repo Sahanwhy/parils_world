@@ -21,6 +21,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     with TickerProviderStateMixin {
   AppRole? _selectedRole;
   bool _isLoading = false;
+  bool _isParilVerified = false;
   late AnimationController _titleController;
   late Animation<double> _titleFade;
   late Animation<Offset> _titleSlide;
@@ -48,21 +49,198 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     super.dispose();
   }
 
+  Future<void> _handleParilSelection() async {
+    if (_isParilVerified) {
+      setState(() => _selectedRole = AppRole.paril);
+      return;
+    }
+
+    final verified = await _showParilVerificationDialog();
+    if (verified == true && mounted) {
+      setState(() {
+        _isParilVerified = true;
+        _selectedRole = AppRole.paril;
+      });
+    }
+  }
+
+  /// Shows a dialog asking for Sahan's birthday to confirm whether it is Paril.
+  Future<bool?> _showParilVerificationDialog() async {
+    final controller = TextEditingController();
+    String? errorMessage;
+
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void verify() {
+            final input = controller.text.trim();
+            final clean = input.replaceAll(RegExp(r'\s*[/.-]\s*'), '/');
+            if (clean == '12/10/2005') {
+              Navigator.pop(ctx, true);
+            } else {
+              setDialogState(() {
+                errorMessage =
+                    'Oops! That\'s not Sahan\'s birthday 🙈\nPlease write it in format: DD/MM/YYYY';
+              });
+            }
+          }
+
+          return AlertDialog(
+            backgroundColor: AppTheme.cardColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              side: BorderSide(color: AppTheme.accentRose.withAlpha(120)),
+            ),
+            title: Row(
+              children: [
+                const Text('🎂 ', style: TextStyle(fontSize: 22)),
+                Expanded(
+                  child: Text(
+                    'Confirm it\'s Paril 💕',
+                    style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'To confirm it\'s really you, enter Sahan\'s birthday:',
+                    style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentRose.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.accentRose.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Icons.info_outline_rounded,
+                            size: 16,
+                            color: AppTheme.accentRoseLight,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Please write it in this format: DD/MM/YYYY',
+                            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                  color: AppTheme.accentRoseLight,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    keyboardType: TextInputType.datetime,
+                    style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
+                          color: AppTheme.textPrimary,
+                          letterSpacing: 1.2,
+                        ),
+                    decoration: InputDecoration(
+                      hintText: 'DD/MM/YYYY',
+                      hintStyle: TextStyle(
+                        color: AppTheme.textMuted.withValues(alpha: 0.5),
+                        letterSpacing: 1.2,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.cake_rounded,
+                        color: AppTheme.accentRoseLight,
+                      ),
+                      errorText: errorMessage,
+                      errorMaxLines: 2,
+                    ),
+                    onSubmitted: (_) => verify(),
+                    onChanged: (_) {
+                      if (errorMessage != null) {
+                        setDialogState(() => errorMessage = null);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: AppTheme.textMuted),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentRose,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  ),
+                ),
+                onPressed: verify,
+                child: const Text('Confirm 💕'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _onContinue() async {
     if (_selectedRole == null) return;
+
+    // If Paril role was selected, ensure verified
+    if (_selectedRole == AppRole.paril && !_isParilVerified) {
+      final verified = await _showParilVerificationDialog();
+      if (verified != true) return;
+      _isParilVerified = true;
+    }
 
     // For Friends or Family — ask for their name first
     if (_selectedRole == AppRole.friends || _selectedRole == AppRole.family) {
       final name = await _showNameDialog();
-      final effectiveName = (name != null && name.trim().isNotEmpty)
-          ? name.trim()
-          : (_selectedRole == AppRole.friends ? 'Friend' : 'Family Member');
+      if (name == null || name.trim().isEmpty) {
+        return; // User cancelled or did not provide a name
+      }
+      final effectiveName = name.trim();
       // Save locally and register to MongoDB (fire and forget)
       final storage = await LocalStorageService.getInstance();
       await storage.setPlayerName(effectiveName);
       MongoDbService().registerPlayer(
         name: effectiveName,
         role: _selectedRole!.name,
+      );
+    } else if (_selectedRole == AppRole.paril) {
+      final storage = await LocalStorageService.getInstance();
+      await storage.setPlayerName('Paril');
+      MongoDbService().registerPlayer(
+        name: 'Paril',
+        role: 'paril',
       );
     }
 
@@ -79,77 +257,89 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   /// Shows a dialog asking for the visitor's name.
   Future<String?> _showNameDialog() async {
     final controller = TextEditingController();
+    String? errorText;
+
     return showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          side: BorderSide(color: AppTheme.accentViolet.withAlpha(80)),
-        ),
-        title: Row(
-          children: [
-            const Text('👋 ', style: TextStyle(fontSize: 22)),
-            Text(
-              'What\'s your name?',
-              style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                color: AppTheme.textPrimary,
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void submit() {
+            final val = controller.text.trim();
+            if (val.isEmpty) {
+              setDialogState(() {
+                errorText = 'Please enter your name';
+              });
+              return;
+            }
+            Navigator.pop(ctx, val);
+          }
+
+          return AlertDialog(
+            backgroundColor: AppTheme.cardColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              side: BorderSide(color: AppTheme.accentViolet.withAlpha(80)),
             ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'So Sahan knows who\'s visiting! 💜',
-              style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                color: AppTheme.textMuted,
-              ),
+            title: Row(
+              children: [
+                const Text('👋 ', style: TextStyle(fontSize: 22)),
+                Text(
+                  'What\'s your name?',
+                  style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
-                color: AppTheme.textPrimary,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Enter your name…',
-                prefixIcon: const Icon(Icons.person_outline_rounded,
-                    color: AppTheme.accentVioletLight),
-              ),
-              onSubmitted: (value) {
-                Navigator.pop(ctx, value.trim());
-              },
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
+                  style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
+                    color: AppTheme.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Enter your name…',
+                    prefixIcon: const Icon(Icons.person_outline_rounded,
+                        color: AppTheme.accentVioletLight),
+                    errorText: errorText,
+                  ),
+                  onSubmitted: (_) => submit(),
+                  onChanged: (_) {
+                    if (errorText != null) {
+                      setDialogState(() => errorText = null);
+                    }
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, null),
-            child: Text(
-              'Skip',
-              style: TextStyle(color: AppTheme.textMuted),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accentViolet,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: AppTheme.textMuted),
+                ),
               ),
-            ),
-            onPressed: () {
-              Navigator.pop(ctx, controller.text.trim());
-            },
-            child: const Text('Continue'),
-          ),
-        ],
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentViolet,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                  ),
+                ),
+                onPressed: submit,
+                child: const Text('Continue'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -253,7 +443,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           icon: Icons.favorite_rounded,
           description: 'Your private world — memories, messages & more.',
           isSelected: _selectedRole == AppRole.paril,
-          onTap: () => setState(() => _selectedRole = AppRole.paril),
+          onTap: _handleParilSelection,
           accentColor: AppTheme.accentRose,
         ),
         const SizedBox(height: AppTheme.spacingM),

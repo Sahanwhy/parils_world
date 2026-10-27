@@ -139,6 +139,15 @@ class _SongDedicationScreenState extends State<SongDedicationScreen>
     return val.clamp(0.0, 1.0);
   }
 
+  Future<void> _skipToDashboard() async {
+    try {
+      await _player.stop();
+    } catch (_) {}
+    if (mounted) {
+      context.go(AppRoutes.dashboard);
+    }
+  }
+
   @override
   void dispose() {
     _positionSub?.cancel();
@@ -204,20 +213,24 @@ class _SongDedicationScreenState extends State<SongDedicationScreen>
             color: AppTheme.textSecondary,
             onPressed: () => context.go(AppRoutes.developerMessage),
           ),
-          Row(
-            children: [
-              FloatingHeart(
-                size: 14,
-                color: AppTheme.accentVioletLight,
-                delay: Duration.zero,
+          TextButton.icon(
+            onPressed: _skipToDashboard,
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.accentVioletLight,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              backgroundColor: AppTheme.accentViolet.withValues(alpha: 0.15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: AppTheme.accentViolet.withValues(alpha: 0.35),
+                ),
               ),
-              const SizedBox(width: 6),
-              FloatingHeart(
-                size: 12,
-                color: AppTheme.accentRoseLight,
-                delay: const Duration(milliseconds: 400),
-              ),
-            ],
+            ),
+            icon: const Icon(Icons.skip_next_rounded, size: 18),
+            label: const Text(
+              'Skip Song',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -546,13 +559,13 @@ class _SongDedicationScreenState extends State<SongDedicationScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(
-                  Icons.lock_outline_rounded,
+                  Icons.music_note_rounded,
                   size: 16,
-                  color: AppTheme.textSecondary,
+                  color: AppTheme.accentRoseLight,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Listen to the full song to unlock ($percentage% completed)',
+                  'Playing dedicated song ($percentage% completed)',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.textSecondary,
                       ),
@@ -561,13 +574,10 @@ class _SongDedicationScreenState extends State<SongDedicationScreen>
             ),
           ),
           const SizedBox(height: AppTheme.spacingM),
-          Opacity(
-            opacity: 0.45,
-            child: GradientButton(
-              label: 'Enter App Paril',
-              icon: Icons.lock_rounded,
-              onPressed: () {},
-            ),
+          GradientButton(
+            label: 'Skip & Enter App Paril',
+            icon: Icons.skip_next_rounded,
+            onPressed: _skipToDashboard,
           ),
         ] else ...[
           Container(
@@ -605,7 +615,7 @@ class _SongDedicationScreenState extends State<SongDedicationScreen>
           GradientButton(
             label: 'Enter App Paril',
             icon: Icons.arrow_forward_rounded,
-            onPressed: () => context.go(AppRoutes.dashboard),
+            onPressed: _skipToDashboard,
           ),
         ],
         if (_errorMessage != null) ...[
