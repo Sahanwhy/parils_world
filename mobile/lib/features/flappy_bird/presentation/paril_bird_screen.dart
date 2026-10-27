@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:audioplayers/audioplayers.dart';
+import '../../../core/config/app_role.dart';
 import '../../../core/routing/app_router.dart';
 import '../../../core/services/mongo_db_service.dart';
 import '../../../core/storage/local_storage_service.dart';
@@ -521,12 +522,15 @@ class _ParilBirdScreenState extends State<ParilBirdScreen>
       }
       s.setFlappyIceCreamCount(_lifetimeIceCreams);
 
-      // Submit to MongoDB leaderboard (fire and forget)
-      final playerName = s.getPlayerName() ?? 'Paril 💜';
-      final role = s.getRole().name;
+      // Submit to MongoDB leaderboard
+      final storedName = s.getPlayerName();
+      final role = s.getRole();
+      final playerName = (storedName != null && storedName.trim().isNotEmpty)
+          ? storedName.trim()
+          : (role == AppRole.paril ? 'Paril 💜' : 'Guest 🌸');
       MongoDbService().submitScore(
         playerName: playerName,
-        role: role,
+        role: role.name,
         score: _score,
         iceCreamCount: _iceCreamCount,
       );
@@ -1207,6 +1211,11 @@ class _ParilBirdScreenState extends State<ParilBirdScreen>
                               ),
                             ],
                           ),
+                        ),
+                        IconButton(
+                          tooltip: 'Refresh',
+                          icon: const Icon(Icons.refresh_rounded, color: Color(0xFFFFD700)),
+                          onPressed: () => setModalState(() {}),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close_rounded, color: Colors.white70),

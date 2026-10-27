@@ -221,33 +221,29 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       _isParilVerified = true;
     }
 
-    // For Friends or Family — ask for their name first
+    String effectiveName = 'Paril';
     if (_selectedRole == AppRole.friends || _selectedRole == AppRole.family) {
       final name = await _showNameDialog();
       if (name == null || name.trim().isEmpty) {
         return; // User cancelled or did not provide a name
       }
-      final effectiveName = name.trim();
-      // Save locally and register to MongoDB (fire and forget)
-      final storage = await LocalStorageService.getInstance();
-      await storage.setPlayerName(effectiveName);
-      MongoDbService().registerPlayer(
-        name: effectiveName,
-        role: _selectedRole!.name,
-      );
-    } else if (_selectedRole == AppRole.paril) {
-      final storage = await LocalStorageService.getInstance();
-      await storage.setPlayerName('Paril');
-      MongoDbService().registerPlayer(
-        name: 'Paril',
-        role: 'paril',
-      );
+      effectiveName = name.trim();
     }
 
     if (!mounted) return;
     setState(() => _isLoading = true);
     final storage = await LocalStorageService.getInstance();
+    await storage.setPlayerName(effectiveName);
     await storage.setRole(_selectedRole!);
+
+    // Register player to MongoDB in the background
+    try {
+      await MongoDbService().registerPlayer(
+        name: effectiveName,
+        role: _selectedRole!.name,
+      ).timeout(const Duration(seconds: 4));
+    } catch (_) {}
+
     if (!mounted) return;
     setState(() => _isLoading = false);
     // Show developer message for everyone

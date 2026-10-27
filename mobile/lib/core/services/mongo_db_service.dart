@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// Service for communicating with the Paril World MongoDB API.
@@ -8,12 +7,10 @@ import 'package:http/http.dart' as http;
 /// Automatically detects Web (localhost) vs Android Emulator (10.0.2.2).
 /// When testing on a real device on the same Wi-Fi, you can set your PC IP.
 class MongoDbService {
-  static String get _baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:3001';
-    }
-    return 'http://10.0.2.2:3001';
-  }
+  /// Render production API URL.
+  static const String _productionUrl = 'https://parils-world.onrender.com';
+
+  static String get _baseUrl => _productionUrl;
 
   static final MongoDbService _instance = MongoDbService._internal();
   factory MongoDbService() => _instance;
