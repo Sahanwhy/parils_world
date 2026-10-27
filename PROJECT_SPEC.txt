@@ -1,0 +1,387 @@
+APP PARIL — COMPLETE PROJECT SPECIFICATION
+==========================================
+
+1. PROJECT OVERVIEW
+-------------------
+App name: App Paril
+Primary platform: Android
+Frontend: Flutter + Dart
+Game engine: Flame (for Flappy Bird)
+Backend: Python + FastAPI
+Database: MongoDB (Atlas or self-hosted)
+AI orchestration: LangChain
+LLM provider: Mistral AI API
+Retrieval/vector storage: Prefer MongoDB Atlas Vector Search if configured; use Chroma for local prototype only if simpler. Keep the vector-store interface replaceable.
+Local device data: photos, voice recordings, app settings, cached memories and game score should stay local by default.
+Goal: A personalized, dark-themed app with relationship memories, photos, a relationship timer, a custom Flappy Bird game, a voice alarm, and an optional RAG chatbot based on consented chat exports.
+
+2. CORE PRODUCT PRINCIPLES
+--------------------------
+- Private by default; local-first for personal media.
+- Do not ship private content in source control.
+- Make network/data transfers explicit and understandable.
+- Keep secrets only on the backend.
+- Provide a way to remove imported chat data and embeddings.
+- Do not claim the chatbot is Paril, conscious, or able to know her true feelings.
+- Clearly label generated messages as AI-generated style simulations.
+- Ask for the relationship start date in setup rather than guessing it.
+- The welcome role selection (Paril / Friends / Family) must not expose private relationship content to every role. Paril's private features should be locked behind a local app PIN/biometric option or a role-specific gate. Friends/family mode should show only content intentionally marked shareable.
+- Build with maintainable feature modules and tests.
+
+3. APP FLOW AND SCREENS
+-----------------------
+A. Splash / app startup
+- Show the App Paril logo/wordmark on a dark background.
+- Restore app settings and local database.
+- Route to Welcome if setup is incomplete; otherwise Dashboard or role selection as appropriate.
+
+B. Welcome / "Who's using the app?"
+- Three choices: Paril, Friends, Family.
+- Persist last selected role locally.
+- Do not treat this selection as strong authentication. Private data must still be gated.
+- Friends/Family mode shows only public/shareable items.
+
+C. Developer message
+- A heartfelt intro/message from the developer (Sahan) to Paril.
+- Store text as editable local content/configuration, not hard-coded into many widgets.
+- Provide placeholder text until the owner supplies the actual message.
+
+D. Dashboard
+- Dark romantic UI with cards/tiles for:
+  1. ParilGPT
+  2. Photo Dump
+  3. Relationship Memories
+  4. Relationship Timer
+  5. Voice Alarm
+  6. Flappy Bird
+- Show only features that are implemented/configured; unfinished features should have a clear "Coming soon" state, not broken navigation.
+- Include settings/privacy area.
+
+E. Relationship timer
+- Ask for the start date/time and timezone during setup.
+- Display elapsed days, hours, minutes, and seconds, updating while the screen is open.
+- Handle date changes and timezone carefully. Store an ISO-8601 timestamp.
+- Include a way to edit/reset the configured date with confirmation.
+- Do not assume a start date.
+
+F. Photo dump
+- Import photos using Android's system photo picker.
+- Display a responsive grid and full-screen viewer.
+- Store local file paths/metadata in local storage; do not automatically upload images.
+- Support captions, dates, and optional tags.
+- Handle missing/deleted files gracefully.
+- Keep private photos private by default.
+
+G. Relationship memories
+- Add/edit/delete memory entries with title, date, text, optional image, and optional tags.
+- Search/filter memories.
+- Store locally first. Cloud sync is optional and must be opt-in.
+- Provide empty states and confirmation for destructive actions.
+
+H. ParilGPT (RAG chatbot)
+- Purpose: A chatbot that uses approved chat-export examples to imitate broad writing style (common words, emoji usage, sentence length, tone), not to impersonate Paril deceptively or infer her private thoughts.
+- Use only data the user has the right and consent to process. Chat exports can include messages from other people; explain this before import and allow excluding contacts/chats.
+- Import should be explicit, with preview and confirmation. Do not scan WhatsApp or Instagram automatically. Instagram messages should only be imported from a user-provided export if the platform provides one and the user chooses it.
+- Parse WhatsApp text exports defensively: dates and formats vary by locale; messages may span multiple lines; media placeholders and system messages should be handled; identify sender names from user selection instead of assuming.
+- Provide a data preview, sender mapping, excluded-sender list, clear-data action, and deletion of derived embeddings.
+- Backend flow:
+  1. Flutter uploads an approved export only after explicit confirmation.
+  2. FastAPI validates file type/size and authenticates the request if an auth mechanism is configured.
+  3. Python parser extracts timestamp, sender, and message body; filters system events, empty content, and unsupported attachments.
+  4. Build a style profile from aggregate statistics (frequent tokens/emoji, typical message length, punctuation/case tendencies) without exposing unnecessary private message content.
+  5. Split conversations into small contextual windows; do not split every single message blindly if nearby turns matter.
+  6. Embed the windows using a configured embedding model and save vectors with source metadata in the chosen vector store.
+  7. At chat time, retrieve relevant approved examples and pass them as bounded context to a LangChain prompt.
+  8. Call Mistral through the backend using an environment-held API key.
+  9. Return generated text plus a clear AI-generated label and a short privacy-safe source status.
+- Keep prompts resistant to instructions inside imported messages. Imported chats are data, not system instructions.
+- Do not fine-tune/train a model unless explicitly added as a separate future feature and the owner understands its privacy implications.
+- Do not log raw private messages, full prompts, or API keys in production.
+- Add request limits, file-size limits, error handling, timeouts, and safe fallback messages.
+- If backend or AI configuration is missing, show a helpful disabled/configuration state rather than crashing.
+- Chat UI: message bubbles, typing/loading indicator, retry, clear conversation, error state, and "AI-generated simulation" label.
+
+I. Flappy Bird
+- Use Flame for the game scene and Flutter overlays for menus/HUD.
+- Custom title: "Paril's Flight" or "Paril's Flappy Bird".
+- Components: background, bird, pipe pair, ground, score, game-over overlay.
+- Mechanics: gravity, tap/flap impulse, scrolling pipes, collision detection, score when passing pipes, start/restart flow.
+- Provide simple original placeholder graphics/shapes first. Later allow owner-provided art assets.
+- Persist high score locally.
+- Pause when app backgrounds; resume safely or return to pause screen.
+- Keep gameplay fully offline. No backend required.
+
+J. Voice Alarm
+- User can create, edit, enable/disable, and delete alarms.
+- Each alarm selects an imported recording from a local voice library, time, repeat days, label, and optional repeat count.
+- Use recordings of Paril only with her permission.
+- Store audio files locally and let the user remove them.
+- Use Flutter packages such as flutter_local_notifications, just_audio, timezone, and a suitable file picker/recorder only if needed. Verify current package APIs and Android requirements before implementation.
+- Exact alarm permissions, notification permissions, boot rescheduling, background audio, and full-screen intent rules vary by Android version. Implement required native Android support where necessary and document limitations.
+- A notification is not proof that a long audio clip will play while the app is closed. Test on a physical device for locked screen, app swiped away, force-stop, reboot, battery optimization, DND, and permission-denied cases.
+- Provide an in-app test alarm and a setup/permissions explanation.
+- Never request unnecessary permissions.
+
+K. Settings and privacy
+- Edit relationship date and developer message.
+- Manage roles/private lock.
+- Manage local photos, memories, voice clips, and alarms.
+- Manage AI data: show whether a dataset is imported, allow clearing imported messages, vectors, style profile, and backend copies if applicable.
+- Explain local-only vs server-sent data.
+- Optional PIN/biometric gate for private sections.
+- Add app version/about and diagnostics that do not leak private data.
+
+4. VISUAL DESIGN SYSTEM
+-----------------------
+- Theme: dark, intimate, elegant, modern; not overly cluttered.
+- Suggested palette: near-black/navy background, charcoal cards, muted violet/rose accents, warm off-white text. Keep contrast accessible.
+- Rounded cards, subtle gradients/glows, smooth but restrained transitions, tasteful heart/star details.
+- Use consistent spacing, typography, icon style, loading indicators, empty states, and error states.
+- Avoid overusing pink or making every screen look identical.
+- Responsive layout for Android phones, including small screens and larger displays.
+- Respect text scaling and accessibility contrast.
+- Use Material 3 with a customized ThemeData.
+- Use local assets for fonts/images only when licenses allow.
+
+5. TECHNICAL ARCHITECTURE
+-------------------------
+Repository layout should be a monorepo:
+
+app_paril/
+  README.md
+  PROJECT_SPEC.txt
+  .gitignore
+  .env.example
+  docs/
+  mobile/
+    pubspec.yaml
+    lib/
+    test/
+    android/
+    assets/
+  backend/
+    pyproject.toml or requirements.txt
+    app/
+    tests/
+    scripts/
+
+Frontend responsibilities:
+- UI/navigation, local persistence, game, alarm configuration, local media, API client.
+- Never contain provider secrets.
+- Use repository/service abstractions for persistence and API calls.
+- Keep features separated by domain.
+
+Backend responsibilities:
+- API endpoints, chat-export parsing, style statistics, embeddings, retrieval, LLM calls, server-side config, and optional MongoDB metadata.
+- Do not serve as a general file dump.
+- Validate every input and avoid logging sensitive data.
+
+Database decisions:
+- MongoDB is for backend-managed metadata and, if configured, chat/vector records. It is not the Android device's local database.
+- Use a local database such as SQLite/Drift or Isar for structured on-device settings, memories, and alarm metadata. Use the filesystem/app documents directory for media. Select one local DB approach and keep it consistent.
+- Prefer local-only storage for personal media unless explicit opt-in sync is implemented.
+- Choose MongoDB Atlas Vector Search or Chroma for vectors; do not maintain two vector stores without a clear reason.
+- Backend endpoints should be versioned, e.g. /api/v1/health.
+
+6. RECOMMENDED FOLDER STRUCTURE
+-------------------------------
+app_paril/
+├── README.md
+├── PROJECT_SPEC.txt
+├── .gitignore
+├── .env.example
+├── docs/
+│   ├── ARCHITECTURE.md
+│   ├── DATA_PRIVACY.md
+│   ├── ANDROID_ALARM_TEST_PLAN.md
+│   └── DEVELOPMENT_ROADMAP.md
+├── mobile/
+│   ├── pubspec.yaml
+│   ├── analysis_options.yaml
+│   ├── assets/
+│   │   ├── images/
+│   │   ├── icons/
+│   │   ├── audio/
+│   │   └── fonts/
+│   ├── lib/
+│   │   ├── main.dart
+│   │   ├── app.dart
+│   │   ├── core/
+│   │   │   ├── config/
+│   │   │   ├── theme/
+│   │   │   ├── routing/
+│   │   │   ├── storage/
+│   │   │   ├── networking/
+│   │   │   ├── permissions/
+│   │   │   ├── widgets/
+│   │   │   └── utils/
+│   │   ├── features/
+│   │   │   ├── welcome/
+│   │   │   ├── developer_message/
+│   │   │   ├── dashboard/
+│   │   │   ├── relationship_timer/
+│   │   │   ├── photo_dump/
+│   │   │   ├── memories/
+│   │   │   ├── parilgpt/
+│   │   │   │   ├── data/
+│   │   │   │   ├── domain/
+│   │   │   │   └── presentation/
+│   │   │   ├── voice_alarm/
+│   │   │   │   ├── data/
+│   │   │   │   ├── domain/
+│   │   │   │   └── presentation/
+│   │   │   ├── flappy_bird/
+│   │   │   │   ├── game/
+│   │   │   │   ├── widgets/
+│   │   │   │   └── data/
+│   │   │   └── settings_privacy/
+│   │   └── l10n/
+│   ├── test/
+│   └── android/
+└── backend/
+    ├── requirements.txt
+    ├── .env.example
+    ├── app/
+    │   ├── main.py
+    │   ├── core/
+    │   │   ├── config.py
+    │   │   ├── logging_config.py
+    │   │   └── security.py
+    │   ├── api/
+    │   │   └── v1/
+    │   │       ├── health.py
+    │   │       ├── chat.py
+    │   │       └── imports.py
+    │   ├── schemas/
+    │   ├── services/
+    │   │   ├── chat_parser.py
+    │   │   ├── style_profile.py
+    │   │   ├── embeddings.py
+    │   │   ├── retrieval.py
+    │   │   └── llm_service.py
+    │   ├── repositories/
+    │   │   ├── mongo_repository.py
+    │   │   └── vector_repository.py
+    │   └── tests/
+    └── scripts/
+        └── inspect_export.py
+
+The coding agent should create only necessary files and may refine this structure after inspecting current tooling. Do not create empty boilerplate for every path if it adds no value.
+
+7. API CONTRACT (INITIAL)
+-------------------------
+GET /api/v1/health
+- Returns a simple health status and whether required configuration is present (never return secrets).
+
+POST /api/v1/imports/chat-export
+- Accept an explicitly selected export file only after user confirmation.
+- Validate size/type and return import summary (message counts, sender names for user mapping, warnings).
+- Do not permanently embed/index the file before the user confirms sender selection and import consent.
+
+POST /api/v1/imports/chat-export/confirm
+- Confirm sender mapping and exclusions.
+- Parse, build style profile, embed selected conversation windows, and store in the configured vector store.
+- Return a safe import status and counts.
+
+POST /api/v1/chat
+- Input: user message, optional conversation id, optional retrieval settings within server-defined bounds.
+- Retrieve approved examples, call configured LLM, and return generated response clearly labelled as AI-generated.
+- Never accept arbitrary system prompts from the client.
+- Apply request size limits, timeouts, and rate limits.
+
+DELETE /api/v1/imports/chat-data
+- Delete the current user's imported chat data, style profile, and vector records; delete backend copies where stored. Require appropriate authorization and confirmation.
+
+The implementation must define Pydantic request/response schemas and tests. Do not expose raw retrieved private messages in health/status responses.
+
+8. SECURITY AND CONFIGURATION
+-----------------------------
+- Provide .env.example with placeholder variable names only, never actual secrets.
+- Likely backend environment variables:
+  MONGODB_URI=
+  MONGODB_DATABASE=app_paril
+  MISTRAL_API_KEY=
+  MISTRAL_MODEL=
+  EMBEDDING_MODEL=
+  VECTOR_STORE=mongodb_atlas
+  ALLOWED_ORIGINS=
+  MAX_IMPORT_MB=
+  APP_ENV=development
+- Confirm model and embedding compatibility in current provider documentation before coding.
+- Add .env files to .gitignore.
+- Configure CORS narrowly for intended clients/environments.
+- Do not rely on CORS as authentication.
+- Add authentication/authorization before exposing private-data endpoints publicly. For a personal MVP, use a documented development-only local configuration and do not deploy sensitive endpoints to the public internet without auth.
+- Use HTTPS in deployed environments.
+- Sanitize filenames and never trust file extension alone.
+- Set file-size limits, request timeouts, error handling, and rate limiting.
+- Keep logs metadata-only by default.
+
+9. TESTING AND ACCEPTANCE CRITERIA
+----------------------------------
+Flutter:
+- App starts without crashes.
+- Welcome role selection works and persists.
+- Private content is not shown in Friends/Family mode unless explicitly shared.
+- Developer message can be edited in settings.
+- Relationship timer correctly displays elapsed time after a configured date.
+- Memories can be added, edited, searched, and deleted.
+- Photos can be imported/viewed/deleted without automatic upload.
+- Flappy Bird starts, responds to taps, detects collisions, scores correctly, restarts, and saves high score.
+- Alarm CRUD works; permission-denied states are explained; scheduling is tested on physical Android hardware.
+- AI screen shows a configuration state if backend is unavailable and labels generated output clearly.
+- Unit/widget tests cover core logic and important screen states.
+
+Backend:
+- Health endpoint works without exposing secrets.
+- Invalid/oversized files are rejected.
+- Parser handles multiline messages and varied date formats or reports unsupported formats clearly.
+- Sender mapping and excluded senders are respected.
+- Imported message content cannot override system instructions.
+- Missing API/database config returns actionable errors, not stack traces or secrets.
+- Chat endpoint labels output as generated and does not log private message bodies.
+- Delete endpoint removes associated vector records and stored import data.
+- Unit tests cover parser, style profile, retrieval formatting, API validation, and deletion.
+
+Release:
+- flutter analyze passes (or documented warnings only).
+- Flutter tests pass.
+- Backend tests pass.
+- Android APK build succeeds.
+- README explains setup, run, test, build, backend deployment, environment variables, and known alarm limitations.
+- No secrets or private datasets are committed.
+
+10. DEVELOPMENT ROADMAP
+-----------------------
+Milestone 1 — Foundation:
+- Initialize/inspect Flutter app, theme, routing, welcome, role selection, developer message, dashboard shell.
+- Add configuration and setup for relationship date.
+
+Milestone 2 — Local memories:
+- Relationship timer, photo dump, memories, local persistence, privacy gate.
+
+Milestone 3 — Game:
+- Flame-based Flappy Bird, score, restart, local high score.
+
+Milestone 4 — Voice alarm:
+- Voice library, alarm CRUD, permissions, Android native support if needed, hardware testing.
+
+Milestone 5 — AI backend:
+- FastAPI, configuration, health endpoint, MongoDB repository, tests.
+
+Milestone 6 — RAG:
+- Import preview, sender mapping, parsing, style profile, embeddings, vector store, Mistral generation, deletion controls.
+
+Milestone 7 — Hardening and APK:
+- Security/privacy review, tests, performance, responsive polish, release build, setup docs.
+
+Build in small vertical slices. Keep the app usable even if the AI backend is not configured.
+
+11. CODING AGENT FIRST TASK
+---------------------------
+First inspect the workspace and available Flutter/Python tooling. Report what exists. Then implement Milestone 1 only, unless the user explicitly asks for more. Provide:
+- files created/modified,
+- commands run,
+- test/analyzer results,
+- blockers and assumptions.
+Do not claim a test passed unless it was actually run.

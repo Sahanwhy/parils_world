@@ -1,0 +1,51 @@
+# Secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub-cache/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Personal data - never commit these
+private_data/
+chat_exports/
+voice_recordings/
+personal_photos/
+*.zip
+*.db
+*.sqlite
+*.sqlite3
+
+# Node.js
+node_modules/
+**/node_modules/
+npm-debug.log*
+
+# Binaries
+*.apk
+*.aab
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
