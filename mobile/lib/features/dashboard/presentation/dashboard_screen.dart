@@ -41,7 +41,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       id: 'photos',
       label: 'Photo Dump',
       icon: Icons.photo_library_rounded,
-      description: 'Our favourite moments.',
+      description: 'Growing up through the years.',
       gradient: LinearGradient(
         colors: [Color(0xFF3F7FBF), Color(0xFF3F5FBF)],
         begin: Alignment.topLeft,
